@@ -53,7 +53,7 @@ public void OnMapStart()
 		g_bOnCooldown[i] = false;
 }
 
-public Action VerifyMap()
+stock void VerifyMap()
 {
 	char currentMap[64];
 	GetCurrentMap(currentMap, sizeof(currentMap));
@@ -303,6 +303,7 @@ public Action StartVote(Handle timer)
 		g_CountdownTimer = INVALID_HANDLE;
 		InitiateVote();
 	}
+	return Plugin_Continue;
 }
 
 public void InitiateVote()
@@ -367,6 +368,7 @@ public int MenuHandler_NotifyPanel(Menu hMenu, MenuAction iAction, int iParam1, 
 		case MenuAction_Select, MenuAction_Cancel:
 			delete hMenu;
 	}
+	return 0;
 }
 
 public void Handler_SettingsVoteFinished(Handle menu, int num_votes, int num_clients, const int[][] client_info, int num_items, const int[][] item_info)
