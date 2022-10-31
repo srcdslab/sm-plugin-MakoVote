@@ -9,10 +9,10 @@
 
 public Plugin myinfo =
 {
-	name        = "MakoVoteSystem",
+	name        = "MakoVote",
 	author	    = "Neon, maxime1907",
-	description = "MakoVoteSystem",
-	version     = "1.2",
+	description = "MakoVote",
+	version     = "1.3.0",
 	url         = "https://steamcommunity.com/id/n3ontm"
 }
 
@@ -44,8 +44,8 @@ public void OnMapStart()
 {
 	VerifyMap();
 
-	PrecacheSound("#nide/Pendulum - Witchcraft.mp3", true);
-	AddFileToDownloadsTable("sound/nide/Pendulum - Witchcraft.mp3");
+	PrecacheSound("#makovote/Pendulum - Witchcraft.mp3", true);
+	AddFileToDownloadsTable("sound/makovote/Pendulum - Witchcraft.mp3");
 
 	bStartVoteNextRound = false;
 
@@ -208,7 +208,7 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		int iMusic = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ss_slow", "ambient_generic");
 		if (iMusic != INVALID_ENT_REFERENCE)
 		{
-			SetVariantString("message #nide/Pendulum - Witchcraft.mp3");
+			SetVariantString("message #makovote/Pendulum - Witchcraft.mp3");
 			AcceptEntityInput(iMusic, "AddOutput");
 			AcceptEntityInput(iMusic, "PlaySound");
 		}
