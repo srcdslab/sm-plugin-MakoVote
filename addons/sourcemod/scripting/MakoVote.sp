@@ -10,9 +10,9 @@
 public Plugin myinfo =
 {
 	name        = "MakoVote",
-	author	    = "Neon, maxime1907",
+	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.3.0",
+	version     = "1.3.1",
 	url         = "https://steamcommunity.com/id/n3ontm"
 }
 
@@ -22,22 +22,27 @@ bool g_bVoteFinished = true;
 bool g_bIsRevote = false;
 bool bStartVoteNextRound = false;
 
+ConVar g_cDelay;
+
 bool g_bOnCooldown[NUMBEROFSTAGES];
 static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode"};
 int g_Winnerstage;
 
-Handle g_VoteMenu = INVALID_HANDLE;
-Handle g_StageList = INVALID_HANDLE;
-Handle g_CountdownTimer = INVALID_HANDLE;
+Handle g_VoteMenu = null;
+ArrayList g_StageList = null;
+Handle g_CountdownTimer = null;
 
 public void OnPluginStart()
 {
-	RegAdminCmd("sm_makovote", Command_AdminStartVote, ADMFLAG_CONVARS, "sm_makovote");
+	g_cDelay = CreateConVar("sm_makovote_delay", "3.0", "Time in seconds for firing the vote from admin command", FCVAR_NOTIFY, true, 1.0, true, 10.0);
 
+	RegAdminCmd("sm_makovote", Command_AdminStartVote, ADMFLAG_CONVARS, "sm_makovote");
 	RegServerCmd("sm_makovote", Command_StartVote);
 
 	HookEvent("round_start",  OnRoundStart);
 	HookEvent("round_end", OnRoundEnd);
+
+	AutoExecConfig(true);
 }
 
 public void OnMapStart()
@@ -104,6 +109,7 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 {
 	if (bStartVoteNextRound)
 	{
+		delete g_CountdownTimer;
 		g_CountdownTimer = CreateTimer(1.0, StartVote, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		bStartVoteNextRound = false;
 	}
@@ -218,10 +224,12 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 public void GenerateArray()
 {
 	int iBlockSize = ByteCountToCells(PLATFORM_MAX_PATH);
-	g_StageList = CreateArray(iBlockSize);
+
+	delete g_StageList;
+	g_StageList = new ArrayList(iBlockSize);
 
 	for (int i = 0; i <= (NUMBEROFSTAGES - 1); i++)
-		PushArrayString(g_StageList, g_sStageName[i]);
+		g_StageList.PushString(g_sStageName[i]);
 
 	int iArraySize = GetArraySize(g_StageList);
 
@@ -229,18 +237,19 @@ public void GenerateArray()
 	{
 		int iRandom = GetRandomInt(0, iArraySize - 1);
 		char sTemp1[128];
-		GetArrayString(g_StageList, iRandom, sTemp1, sizeof(sTemp1));
+		g_StageList.GetString(iRandom, sTemp1, sizeof(sTemp1));
+
 		char sTemp2[128];
-		GetArrayString(g_StageList, i, sTemp2, sizeof(sTemp2));
-		SetArrayString(g_StageList, i, sTemp1);
-		SetArrayString(g_StageList, iRandom, sTemp2);
+		g_StageList.GetString(i, sTemp2, sizeof(sTemp2));
+
+		g_StageList.SetString(i, sTemp1);
+		g_StageList.SetString(iRandom, sTemp2);
 	}
 }
 
 public Action Command_AdminStartVote(int client, int argc)
 {
 	char name[64];
-	int timer = 5;
 
 	if (client == 0)
 		name = "The server";
@@ -248,16 +257,24 @@ public Action Command_AdminStartVote(int client, int argc)
 		Format(name, sizeof(name), "Disconnected (uid:%d)", client);
 
 	if (client != 0)
-		CPrintToChatAll("{green}[SM] {cyan}%s {white}has initiated a mako vote round (In %d seconds)", name, timer);
+	{
+		CPrintToChatAll("{green}[SM] {cyan}%s {white}has initiated a mako vote round (In %d seconds)", name, g_cDelay.IntValue);
+		CreateTimer(g_cDelay.FloatValue, AdminStartVote_Timer);
+	}
 	else
-		CPrintToChatAll("{green}[SM] {cyan}%s {white}has initiated a mako vote round (Next round)", name, timer);	
+		CPrintToChatAll("{green}[SM] {cyan}%s {white}has initiated a mako vote round (Next round)", name);
 
 	Cmd_StartVote();
 
-	if (client != 0)
-		ServerCommand("mp_restartgame %d", timer);
-
 	return Plugin_Handled;
+}
+
+stock Action AdminStartVote_Timer(Handle hTimer)
+{
+	CPrintToChatAll("{green}[MakoVote] {white}Restarting round, be ready to vote.");
+	TerminateRound();
+
+	return Plugin_Stop;
 }
 
 public Action Command_StartVote(int args)
@@ -299,9 +316,9 @@ public Action StartVote(Handle timer)
 	if (iCountDown-- <= 0)
 	{
 		iCountDown = 5;
-		KillTimer(g_CountdownTimer);
-		g_CountdownTimer = INVALID_HANDLE;
+		g_CountdownTimer = null;
 		InitiateVote();
+		return Plugin_Stop;
 	}
 	return Plugin_Continue;
 }
@@ -311,18 +328,19 @@ public void InitiateVote()
 	if(IsVoteInProgress())
 	{
 		CPrintToChatAll("{green}[Mako Vote] {white}Another vote is currently in progress, retrying again in 5s.");
-		g_CountdownTimer = CreateTimer(1.0, StartVote, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		delete g_CountdownTimer;
+		g_CountdownTimer = CreateTimer(5.0, StartVote, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		return;
 	}
 
 	Handle menuStyle = GetMenuStyleHandle(view_as<MenuStyle>(0));
 	g_VoteMenu = CreateMenuEx(menuStyle, Handler_MakoVoteMenu, MenuAction_End | MenuAction_Display | MenuAction_DisplayItem | MenuAction_VoteCancel);
 
-	int iArraySize = GetArraySize(g_StageList);
+	int iArraySize = g_StageList.Length;
 	for (int i = 0; i <= (iArraySize - 1); i++)
 	{
 		char sBuffer[128];
-		GetArrayString(g_StageList, i, sBuffer, sizeof(sBuffer));
+		g_StageList.GetString(i, sBuffer, sizeof(sBuffer));
 
 		for (int j = 0; j <= (NUMBEROFSTAGES - 1); j++)
 		{
@@ -353,8 +371,7 @@ public int Handler_MakoVoteMenu(Handle menu, MenuAction action, int param1, int 
 			if (param1 != -1)
 			{
 				g_bVoteFinished = true;
-				float fDelay = 3.0;
-				CS_TerminateRound(fDelay, CSRoundEnd_GameStart, false);
+				TerminateRound();
 			}
 		}
 	}
@@ -384,10 +401,12 @@ public void Handler_SettingsVoteFinished(Handle menu, int num_votes, int num_cli
 		char sSecond[128];
 		GetMenuItem(menu, item_info[0][VOTEINFO_ITEM_INDEX], sFirst, sizeof(sFirst));
 		GetMenuItem(menu, item_info[1][VOTEINFO_ITEM_INDEX], sSecond, sizeof(sSecond));
-		ClearArray(g_StageList);
-		PushArrayString(g_StageList, sFirst);
-		PushArrayString(g_StageList, sSecond);
+		g_StageList.Clear();
+		g_StageList.PushString(sFirst);
+		g_StageList.PushString(sSecond);
 		g_bIsRevote = true;
+
+		delete g_CountdownTimer;
 		g_CountdownTimer = CreateTimer(1.0, StartVote, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 		return;
@@ -414,9 +433,9 @@ public void Handler_VoteFinishedGeneric(Handle menu, int num_votes, int num_clie
 	}
 
 	ServerCommand("sm_stage %d", (g_Winnerstage + 4));
+	TerminateRound();
 
-	float fDelay = 3.0;
-	CS_TerminateRound(fDelay, CSRoundEnd_GameStart, false);
+	delete menu;
 }
 
 public int GetCurrentStage()
@@ -472,4 +491,13 @@ public int FindEntityByTargetname(int entity, const char[] sTargetname, const ch
 		}
 	}
 	return INVALID_ENT_REFERENCE;
+}
+
+void TerminateRound()
+{
+	CS_TerminateRound(1.5, CSRoundEnd_Draw, false);
+
+	// Fix the score - Round Draw give 1 point to CT Team
+	int score = GetTeamScore(CS_TEAM_CT);
+	if (score > 0) SetTeamScore(CS_TEAM_CT, (score - 1));
 }
