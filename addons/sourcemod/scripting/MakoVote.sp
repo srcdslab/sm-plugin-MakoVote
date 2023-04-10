@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.3.1",
+	version     = "1.3.2",
 	url         = "https://steamcommunity.com/id/n3ontm"
 }
 
@@ -434,8 +434,6 @@ public void Handler_VoteFinishedGeneric(Handle menu, int num_votes, int num_clie
 
 	ServerCommand("sm_stage %d", (g_Winnerstage + 4));
 	TerminateRound();
-
-	delete menu;
 }
 
 public int GetCurrentStage()
