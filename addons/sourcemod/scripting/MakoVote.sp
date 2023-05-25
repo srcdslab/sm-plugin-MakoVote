@@ -12,17 +12,20 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.3.2",
+	version     = "1.4",
 	url         = "https://steamcommunity.com/id/n3ontm"
 }
 
 #define NUMBEROFSTAGES 6
 
-bool g_bVoteFinished = true;
-bool g_bIsRevote = false;
-bool bStartVoteNextRound = false;
-
 ConVar g_cDelay;
+ConVar g_cRtd;
+ConVar g_cRtd_Percent;
+
+bool g_bIsRevote = false;
+bool g_bPlayedZM = false;
+bool g_bVoteFinished = true;
+bool bStartVoteNextRound = false;
 
 bool g_bOnCooldown[NUMBEROFSTAGES];
 static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode"};
@@ -35,6 +38,8 @@ Handle g_CountdownTimer = null;
 public void OnPluginStart()
 {
 	g_cDelay = CreateConVar("sm_makovote_delay", "3.0", "Time in seconds for firing the vote from admin command", FCVAR_NOTIFY, true, 1.0, true, 10.0);
+	g_cRtd = CreateConVar("sm_makovote_rtd", "0", "Enable Roll The Dice", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cRtd_Percent = CreateConVar("sm_makovote_rtd_percent", "15", "Percentage chance value to trigger ZM mod with RTD", FCVAR_NOTIFY, true, 0.0, true, 100.0);
 
 	RegAdminCmd("sm_makovote", Command_AdminStartVote, ADMFLAG_CONVARS, "sm_makovote");
 	RegServerCmd("sm_makovote", Command_StartVote);
@@ -49,10 +54,8 @@ public void OnMapStart()
 {
 	VerifyMap();
 
-	PrecacheSound("#makovote/Pendulum - Witchcraft.mp3", true);
-	AddFileToDownloadsTable("sound/makovote/Pendulum - Witchcraft.mp3");
-
 	bStartVoteNextRound = false;
+	g_bPlayedZM = false;
 
 	for (int i = 0; i <= (NUMBEROFSTAGES - 1); i++)
 		g_bOnCooldown[i] = false;
@@ -68,27 +71,23 @@ stock void VerifyMap()
 		GetPluginFilename(INVALID_HANDLE, sFilename, sizeof(sFilename));
 		ServerCommand("sm plugins unload %s", sFilename);
 	}
+	else
+	{
+		PrecacheSound("#makovote/Pendulum - Witchcraft.mp3", true);
+		AddFileToDownloadsTable("sound/makovote/Pendulum - Witchcraft.mp3");
+	}
 }
 
-public void OnEntityCreated(int iEntity, const char[] sClassname)
-{
-	SDKHook(iEntity, SDKHook_SpawnPost, MyOnEntitySpawned);
-}
-
-public void MyOnEntitySpawned(int iEntity)
+public void OnEntitySpawned(int iEntity, const char[] sClassname)
 {
 	if (g_bVoteFinished || !IsValidEntity(iEntity) || !IsValidEdict(iEntity))
 		return;
 
 	char sTargetname[128];
 	GetEntPropString(iEntity, Prop_Data, "m_iName", sTargetname, sizeof(sTargetname));
-	char sClassname[128];
-	GetEdictClassname(iEntity, sClassname, sizeof(sClassname));
 
 	if ((strcmp(sTargetname, "espad") != 0) && (strcmp(sTargetname, "ss_slow") != 0) && (strcmp(sClassname, "ambient_generic") == 0))
-	{
 		AcceptEntityInput(iEntity, "Kill");
-	}
 }
 
 public void OnRoundEnd(Event hEvent, const char[] sEvent, bool bDontBroadcast)
@@ -110,17 +109,35 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 	if (bStartVoteNextRound)
 	{
 		delete g_CountdownTimer;
+		if (!g_bPlayedZM && g_cRtd.BoolValue)
+		{
+			CPrintToChatAll("{green}[Mako Vote] {white}ZM has not been played yet. Rolling the dice...");
+			if (GetRandomInt(1, 100) <= g_cRtd_Percent.IntValue)
+			{
+				CPrintToChatAll("{green}[Mako Vote] {white}Result: ZM, restarting round.");
+				ServerCommand("sm_stage zm");
+				g_bVoteFinished = true;
+				bStartVoteNextRound = false;
+				g_bPlayedZM = true;
+				CS_TerminateRound(1.0, CSRoundEnd_GameStart, false);
+				return;
+			}
+			CPrintToChatAll("{green}[Mako Vote] {white}Result: Normal Mako Vote");
+		}
+		if (g_bPlayedZM && g_cRtd.BoolValue)
+			CPrintToChatAll("{green}[Mako Vote] {white}ZM already has been played. Starting normal vote.");
+	
 		g_CountdownTimer = CreateTimer(1.0, StartVote, INVALID_HANDLE, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		bStartVoteNextRound = false;
 	}
 
 	if (!(g_bVoteFinished))
 	{
-		int iStrip = FindEntityByTargetname(INVALID_ENT_REFERENCE, "race_game_zone", "game_zone_player");
+		int iStrip = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceZone", "game_zone_player");
 		if (iStrip != INVALID_ENT_REFERENCE)
 			AcceptEntityInput(iStrip, "FireUser1");
 
-		int iCounter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "Level_Counter", "math_counter");
+		int iCounter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "math_counter");
 		if (iCounter != INVALID_ENT_REFERENCE)
 			AcceptEntityInput(iCounter, "Kill");
 
@@ -147,7 +164,7 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		if (iBarrerasfinal != INVALID_ENT_REFERENCE)
 				AcceptEntityInput(iBarrerasfinal, "Kill");
 
-		int iPush = FindEntityByTargetname(INVALID_ENT_REFERENCE, "race_push", "trigger_push");
+		int iPush = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RacePush", "trigger_push");
 		if (iPush != INVALID_ENT_REFERENCE)
 				AcceptEntityInput(iPush, "Kill");
 
@@ -155,32 +172,32 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		if (iFilter != INVALID_ENT_REFERENCE)
 				AcceptEntityInput(iFilter, "Kill");
 
-		int iTemp1 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ex2_laser_1_temp", "point_template");
+		int iTemp1 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser1Temp", "point_template");
 		if (iTemp1 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp1, "OnEntitySpawned", "ex2_laser_1_hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp1, "OnEntitySpawned", "ex2_laser_1_hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+				DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,SetDamage,0,0,-1");
+				DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
-		int iTemp2 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ex2_laser_2_temp", "point_template");
+		int iTemp2 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser2Temp", "point_template");
 		if (iTemp2 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp2, "OnEntitySpawned", "ex2_laser_2_hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp2, "OnEntitySpawned", "ex2_laser_2_hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+				DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,SetDamage,0,0,-1");
+				DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
-		int iTemp3 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ex2_laser_3_temp", "point_template");
+		int iTemp3 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser3Temp", "point_template");
 		if (iTemp3 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp3, "OnEntitySpawned", "ex2_laser_3_hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp3, "OnEntitySpawned", "ex2_laser_3_hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+				DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,SetDamage,0,0,-1");
+				DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
-		int iTemp4 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ex2_laser_4_temp", "point_template");
+		int iTemp4 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser4Temp", "point_template");
 		if (iTemp4 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp4, "OnEntitySpawned", "ex2_laser_4_hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp4, "OnEntitySpawned", "ex2_laser_4_hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,SetDamage,0,0,-1");
+				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 
 		}
 
@@ -289,6 +306,9 @@ public void Cmd_StartVote()
 
 	if (iCurrentStage > -1)
 		g_bOnCooldown[iCurrentStage] = true;
+
+	if (iCurrentStage == 5)
+		g_bPlayedZM = true;
 
 	int iOnCD = 0;
 	for (int i = 0; i <= (NUMBEROFSTAGES - 1); i++)
@@ -438,7 +458,7 @@ public void Handler_VoteFinishedGeneric(Handle menu, int num_votes, int num_clie
 
 public int GetCurrentStage()
 {
-	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "Level_Counter", "math_counter");
+	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "math_counter");
 
 	int offset = FindDataMapInfo(iLevelCounterEnt, "m_OutValue");
 	int iCounterVal = RoundFloat(GetEntDataFloat(iLevelCounterEnt, offset));
