@@ -12,10 +12,11 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5",
-	url         = "https://steamcommunity.com/id/n3ontm"
+	version     = "1.5.1",
+	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
+#define DEFAULTSTAGES 4 // Normal, Hard, Ex, Ex2 (we dont count warmup)
 #define NUMBEROFSTAGES 7
 
 ConVar g_cDelay;
@@ -97,9 +98,7 @@ public void OnRoundEnd(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 	{
 		case(CS_TEAM_CT):
 		{
-			int iCurrentStage = GetCurrentStage();
-			
-			if (iCurrentStage > -1)
+			if (GetCurrentStage() >= DEFAULTSTAGES)
 				Cmd_StartVote();
 		}
 	}
@@ -214,7 +213,6 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		{
 				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,SetDamage,0,0,-1");
 				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
-
 		}
 
 		int iLaserTimer = FindEntityByTargetname(INVALID_ENT_REFERENCE, "cortes2", "logic_timer");
@@ -302,7 +300,7 @@ public Action Command_StartVote(int args)
 
 public void Cmd_StartVote()
 {
-	int iCurrentStage = GetCurrentStage();
+	int iCurrentStage = (GetCurrentStage() - DEFAULTSTAGES);
 
 	if (iCurrentStage > -1)
 		g_bOnCooldown[iCurrentStage] = true;
@@ -452,7 +450,7 @@ public void Handler_VoteFinishedGeneric(Handle menu, int num_votes, int num_clie
 			g_Winnerstage = i;
 	}
 
-	ServerCommand("sm_stage %d", (g_Winnerstage + 4));
+	ServerCommand("sm_stage %d", (g_Winnerstage + DEFAULTSTAGES));
 	TerminateRound();
 }
 
@@ -467,21 +465,21 @@ public int GetCurrentStage()
 
 	int iCurrentStage;
 	if (iCounterVal == 5) // Ex2
-		iCurrentStage = 0;
-	else if (iCounterVal == 6) // ZM Mode
-		iCurrentStage = 5;
-	else if (iCounterVal == 7) // Ex2 (H+U)
-		iCurrentStage = 1;
-	else if (iCounterVal == 9) // Ex3 (Hellz)
-		iCurrentStage = 3;
-	else if (iCounterVal == 10) // Ex3 (ZED)
-		iCurrentStage = 2;
-	else if (iCounterVal == 11) // Race
 		iCurrentStage = 4;
-	else if (iCounterVal == 13) // Ex3 (NiDe)
+	else if (iCounterVal == 6) // ZM Mode
+		iCurrentStage = 9;
+	else if (iCounterVal == 7) // Ex2 (H+U)
+		iCurrentStage = 5;
+	else if (iCounterVal == 9) // Ex3 (Hellz)
+		iCurrentStage = 7;
+	else if (iCounterVal == 10) // Ex3 (ZED)
 		iCurrentStage = 6;
+	else if (iCounterVal == 11) // Race
+		iCurrentStage = 8;
+	else if (iCounterVal == 13) // Ex3 (NiDe)
+		iCurrentStage = 10;
 	else
-		iCurrentStage = 0;
+		iCurrentStage = -1;
 
 	return iCurrentStage;
 }
