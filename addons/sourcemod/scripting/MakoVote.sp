@@ -12,11 +12,12 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.4",
-	url         = "https://steamcommunity.com/id/n3ontm"
+	version     = "1.5.1",
+	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
-#define NUMBEROFSTAGES 6
+#define DEFAULTSTAGES 4 // Normal, Hard, Ex, Ex2 (we dont count warmup)
+#define NUMBEROFSTAGES 7
 
 ConVar g_cDelay;
 ConVar g_cRtd;
@@ -28,7 +29,8 @@ bool g_bVoteFinished = true;
 bool bStartVoteNextRound = false;
 
 bool g_bOnCooldown[NUMBEROFSTAGES];
-static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode"};
+static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode", "Extreme 3 (NiDE)"};
+
 int g_Winnerstage;
 
 Handle g_VoteMenu = null;
@@ -96,9 +98,7 @@ public void OnRoundEnd(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 	{
 		case(CS_TEAM_CT):
 		{
-			int iCurrentStage = GetCurrentStage();
-			
-			if (iCurrentStage > -1)
+			if (GetCurrentStage() >= DEFAULTSTAGES)
 				Cmd_StartVote();
 		}
 	}
@@ -137,14 +137,33 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		if (iStrip != INVALID_ENT_REFERENCE)
 			AcceptEntityInput(iStrip, "FireUser1");
 
-		int iCounter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "math_counter");
+		int iButton1 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "boton", "func_button");
+		if (iButton1 != INVALID_ENT_REFERENCE)
+			AcceptEntityInput(iButton1, "Lock");
+
+		int iButton2 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceMapButton1", "func_button");
+		if (iButton2 != INVALID_ENT_REFERENCE)
+			AcceptEntityInput(iButton2, "Lock");
+
+		int iButton3 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceMapButton2", "func_button");
+		if (iButton3 != INVALID_ENT_REFERENCE)
+			AcceptEntityInput(iButton3, "Lock");
+
+		int iButton4 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceMapButton3", "func_button");
+		if (iButton4 != INVALID_ENT_REFERENCE)
+			AcceptEntityInput(iButton4, "Lock");
+
+		int iButton5 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceMapButton4", "func_button");
+		if (iButton5 != INVALID_ENT_REFERENCE)
+			AcceptEntityInput(iButton5, "Lock");
+
+		int iCounter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCase", "logic_case");
 		if (iCounter != INVALID_ENT_REFERENCE)
 			AcceptEntityInput(iCounter, "Kill");
 
 		int iDestination = FindEntityByTargetname(INVALID_ENT_REFERENCE, "arriba2ex", "info_teleport_destination");
 		if (iDestination != INVALID_ENT_REFERENCE)
 		{
-
 			SetVariantString("origin -9350 4550 100");
 			AcceptEntityInput(iDestination, "AddOutput");
 
@@ -163,10 +182,6 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		int iBarrerasfinal = FindEntityByTargetname(INVALID_ENT_REFERENCE, "barrerasfinal", "prop_dynamic");
 		if (iBarrerasfinal != INVALID_ENT_REFERENCE)
 				AcceptEntityInput(iBarrerasfinal, "Kill");
-
-		int iPush = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RacePush", "trigger_push");
-		if (iPush != INVALID_ENT_REFERENCE)
-				AcceptEntityInput(iPush, "Kill");
 
 		int iFilter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "humanos", "filter_activator_team");
 		if (iFilter != INVALID_ENT_REFERENCE)
@@ -198,35 +213,18 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		{
 				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,SetDamage,0,0,-1");
 				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
-
 		}
 
 		int iLaserTimer = FindEntityByTargetname(INVALID_ENT_REFERENCE, "cortes2", "logic_timer");
 		if (iLaserTimer != INVALID_ENT_REFERENCE)
 			AcceptEntityInput(iLaserTimer, "Enable");
 
-		int iGameText = FindEntityByTargetname(INVALID_ENT_REFERENCE, "Level_Text", "game_text");
-		if (iGameText != INVALID_ENT_REFERENCE)
-			AcceptEntityInput(iGameText, "Kill");
-
-		int iNewGameText;
-		iNewGameText = CreateEntityByName("game_text");
-		DispatchKeyValue(iNewGameText, "targetname", "intermission_game_text");
-		DispatchKeyValue(iNewGameText, "channel", "4");
-		DispatchKeyValue(iNewGameText, "spawnflags", "1");
-		DispatchKeyValue(iNewGameText, "color", "255 128 0");
-		DispatchKeyValue(iNewGameText, "color2", "255 255 0");
-		DispatchKeyValue(iNewGameText, "fadein", "1");
-		DispatchKeyValue(iNewGameText, "fadeout", "1");
-		DispatchKeyValue(iNewGameText, "holdtime", "10");
-		DispatchKeyValue(iNewGameText, "message", "Intermission Round");
-		DispatchKeyValue(iNewGameText, "x", "-1");
-		DispatchKeyValue(iNewGameText, "y", ".01");
-		DispatchKeyValue(iNewGameText, "OnUser1", "!self,Display,,0,-1");
-		DispatchKeyValue(iNewGameText, "OnUser1", "!self,FireUser1,,5,-1");
-		DispatchSpawn(iNewGameText);
-		SetVariantString("!activator");
-		AcceptEntityInput(iNewGameText, "FireUser1");
+		int iLevelText = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelText", "game_text");
+		if (iLevelText != INVALID_ENT_REFERENCE)
+		{
+			SetVariantString("message > INTERMISSION ROUND <");
+			AcceptEntityInput(iLevelText, "AddOutput");
+		}
 
 		int iMusic = FindEntityByTargetname(INVALID_ENT_REFERENCE, "ss_slow", "ambient_generic");
 		if (iMusic != INVALID_ENT_REFERENCE)
@@ -302,7 +300,7 @@ public Action Command_StartVote(int args)
 
 public void Cmd_StartVote()
 {
-	int iCurrentStage = GetCurrentStage();
+	int iCurrentStage = (GetCurrentStage() - DEFAULTSTAGES);
 
 	if (iCurrentStage > -1)
 		g_bOnCooldown[iCurrentStage] = true;
@@ -452,30 +450,34 @@ public void Handler_VoteFinishedGeneric(Handle menu, int num_votes, int num_clie
 			g_Winnerstage = i;
 	}
 
-	ServerCommand("sm_stage %d", (g_Winnerstage + 4));
+	ServerCommand("sm_stage %d", (g_Winnerstage + DEFAULTSTAGES));
 	TerminateRound();
 }
 
 public int GetCurrentStage()
 {
-	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "math_counter");
+	// Spwaned as math_counter, but get changed as info_target
+	// "OnUser1" "LevelCounter,AddOutput,classname info_target,0.03,1"
+	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "info_target");
 
 	int offset = FindDataMapInfo(iLevelCounterEnt, "m_OutValue");
 	int iCounterVal = RoundFloat(GetEntDataFloat(iLevelCounterEnt, offset));
 
 	int iCurrentStage;
-	if (iCounterVal == 5)
-		iCurrentStage = 0;
-	else if (iCounterVal == 6)
-		iCurrentStage = 5;
-	else if (iCounterVal == 7)
-		iCurrentStage = 1;
-	else if (iCounterVal == 9)
-		iCurrentStage = 3;
-	else if (iCounterVal == 10)
-		iCurrentStage = 2;
-	else if (iCounterVal == 11)
+	if (iCounterVal == 5) // Ex2
 		iCurrentStage = 4;
+	else if (iCounterVal == 6) // ZM Mode
+		iCurrentStage = 9;
+	else if (iCounterVal == 7) // Ex2 (H+U)
+		iCurrentStage = 5;
+	else if (iCounterVal == 9) // Ex3 (Hellz)
+		iCurrentStage = 7;
+	else if (iCounterVal == 10) // Ex3 (ZED)
+		iCurrentStage = 6;
+	else if (iCounterVal == 11) // Race
+		iCurrentStage = 8;
+	else if (iCounterVal == 13) // Ex3 (NiDe)
+		iCurrentStage = 10;
 	else
 		iCurrentStage = -1;
 
