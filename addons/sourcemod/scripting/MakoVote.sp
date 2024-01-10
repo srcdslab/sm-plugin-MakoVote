@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5.1",
+	version     = "1.5.2",
 	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
@@ -47,8 +47,6 @@ public void OnPluginStart()
 	RegServerCmd("sm_makovote", Command_StartVote);
 
 	HookEvent("round_start",  OnRoundStart);
-	HookEvent("round_end", OnRoundEnd);
-
 	AutoExecConfig(true);
 }
 
@@ -90,18 +88,6 @@ public void OnEntitySpawned(int iEntity, const char[] sClassname)
 
 	if ((strcmp(sTargetname, "espad") != 0) && (strcmp(sTargetname, "ss_slow") != 0) && (strcmp(sClassname, "ambient_generic") == 0))
 		AcceptEntityInput(iEntity, "Kill");
-}
-
-public void OnRoundEnd(Event hEvent, const char[] sEvent, bool bDontBroadcast)
-{
-	switch(GetEventInt(hEvent, "winner"))
-	{
-		case(CS_TEAM_CT):
-		{
-			if (GetCurrentStage() >= DEFAULTSTAGES)
-				Cmd_StartVote();
-		}
-	}
 }
 
 public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
