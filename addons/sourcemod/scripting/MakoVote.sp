@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5.2",
+	version     = "1.5.3",
 	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
@@ -378,16 +378,6 @@ public int Handler_MakoVoteMenu(Handle menu, MenuAction action, int param1, int 
 				TerminateRound();
 			}
 		}
-	}
-	return 0;
-}
-
-public int MenuHandler_NotifyPanel(Menu hMenu, MenuAction iAction, int iParam1, int iParam2)
-{
-	switch (iAction)
-	{
-		case MenuAction_Select, MenuAction_Cancel:
-			delete hMenu;
 	}
 	return 0;
 }
