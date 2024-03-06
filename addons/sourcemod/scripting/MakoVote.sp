@@ -12,16 +12,14 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5.3",
+	version     = "1.5.4",
 	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
 #define DEFAULTSTAGES 4 // Normal, Hard, Ex, Ex2 (we dont count warmup)
-#define NUMBEROFSTAGES 7
+#define NUMBEROFSTAGES 8
 
-ConVar g_cDelay;
-ConVar g_cRtd;
-ConVar g_cRtd_Percent;
+ConVar g_cDelay, g_cRtd, g_cRtd_Percent, g_cMenuCDWhiteDraw, g_cZMStageMenu, g_cCDNumber;
 
 bool g_bIsRevote = false;
 bool g_bPlayedZM = false;
@@ -29,7 +27,7 @@ bool g_bVoteFinished = true;
 bool bStartVoteNextRound = false;
 
 bool g_bOnCooldown[NUMBEROFSTAGES];
-static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode", "Extreme 3 (NiDE)"};
+static char g_sStageName[NUMBEROFSTAGES][512] = {"Extreme 2", "Extreme 2 (Heal + Ultima)", "Extreme 3 (ZED)", "Extreme 3 (Hellz)", "Race Mode", "Zombie Mode", "Extreme 3 (NiDE)", "Extreme 3 (RMZS)"};
 
 int g_Winnerstage;
 
@@ -42,6 +40,9 @@ public void OnPluginStart()
 	g_cDelay = CreateConVar("sm_makovote_delay", "3.0", "Time in seconds for firing the vote from admin command", FCVAR_NOTIFY, true, 1.0, true, 10.0);
 	g_cRtd = CreateConVar("sm_makovote_rtd", "0", "Enable Roll The Dice", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cRtd_Percent = CreateConVar("sm_makovote_rtd_percent", "15", "Percentage chance value to trigger ZM mod with RTD", FCVAR_NOTIFY, true, 0.0, true, 100.0);
+	g_cMenuCDWhiteDraw = CreateConVar("sm_makovote_menu_cdwhitedraw", "1", "Enable/Disable the white draw of stage when it is on cooldown", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cZMStageMenu = CreateConVar("sm_makovote_zmstage_menu", "1", "Enable/Disable the ZM stage in the menu [dependency: sm_makovote_rtd 0]", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	g_cCDNumber = CreateConVar("sm_makovote_cd_maxstages", "3", "Number of stages to be on cooldown before reset", FCVAR_NOTIFY, true, 0.0, true, float(NUMBEROFSTAGES));
 
 	RegAdminCmd("sm_makovote", Command_AdminStartVote, ADMFLAG_CONVARS, "sm_makovote");
 	RegServerCmd("sm_makovote", Command_StartVote);
@@ -54,6 +55,7 @@ public void OnMapStart()
 {
 	VerifyMap();
 
+	g_bVoteFinished = true;
 	bStartVoteNextRound = false;
 	g_bPlayedZM = false;
 
@@ -117,7 +119,7 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 		bStartVoteNextRound = false;
 	}
 
-	if (!(g_bVoteFinished))
+	if (!g_bVoteFinished)
 	{
 		int iStrip = FindEntityByTargetname(INVALID_ENT_REFERENCE, "RaceZone", "game_zone_player");
 		if (iStrip != INVALID_ENT_REFERENCE)
@@ -301,7 +303,7 @@ public void Cmd_StartVote()
 			iOnCD += 1;
 	}
 
-	if (iOnCD >= 3)
+	if (iOnCD >= g_cCDNumber.IntValue)
 	{
 		for (int i = 0; i <= (NUMBEROFSTAGES - 1); i++)
 			g_bOnCooldown[i] = false;
@@ -346,19 +348,22 @@ public void InitiateVote()
 		char sBuffer[128];
 		g_StageList.GetString(i, sBuffer, sizeof(sBuffer));
 
-		for (int j = 0; j <= (NUMBEROFSTAGES - 1); j++)
+		bool isZombieMode = strcmp(sBuffer, "Zombie Mode") == 0;
+		bool disableItem = g_bOnCooldown[i] || (isZombieMode && g_bPlayedZM);
+		bool bSkipZMStage = isZombieMode && g_bPlayedZM || !g_cZMStageMenu.BoolValue;
+
+		if (g_cMenuCDWhiteDraw.BoolValue && bSkipZMStage)
+			continue;
+		else
 		{
-			if (strcmp(sBuffer, g_sStageName[j]) == 0)
-			{
-				if (g_bOnCooldown[j])
-					AddMenuItem(g_VoteMenu, sBuffer, sBuffer, ITEMDRAW_DISABLED);
-				else
-					AddMenuItem(g_VoteMenu, sBuffer, sBuffer);
-			}
+			if ((isZombieMode && g_cRtd.BoolValue) || (g_bOnCooldown[i] && !isZombieMode) || bSkipZMStage || !g_cZMStageMenu.BoolValue)
+				continue;
 		}
+
+		AddMenuItem(g_VoteMenu, sBuffer, sBuffer, disableItem ? ITEMDRAW_DISABLED : 0);
 	}
 
-	SetMenuOptionFlags(g_VoteMenu, MENUFLAG_BUTTON_NOVOTE);
+	SetMenuOptionFlags(g_VoteMenu, MENU_NO_PAGINATION);
 	SetMenuTitle(g_VoteMenu, "What stage to play next?");
 	SetVoteResultCallback(g_VoteMenu, Handler_SettingsVoteFinished);
 	VoteMenuToAll(g_VoteMenu, 20);
@@ -434,17 +439,24 @@ public int GetCurrentStage()
 {
 	// Spwaned as math_counter, but get changed as info_target
 	// "OnUser1" "LevelCounter,AddOutput,classname info_target,0.03,1"
-	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "info_target");
+
+	int iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "math_counter");
+	if (iLevelCounterEnt == INVALID_ENT_REFERENCE)
+		iLevelCounterEnt = FindEntityByTargetname(INVALID_ENT_REFERENCE, "LevelCounter", "info_target");
 
 	int offset = FindDataMapInfo(iLevelCounterEnt, "m_OutValue");
 	int iCounterVal = RoundFloat(GetEntDataFloat(iLevelCounterEnt, offset));
 
 	int iCurrentStage;
+	// Note: iCurrentStage is the index as "triggers" related to the stage in the adminroom config.
+
+	PrintToChatAll("Counter Value: %d", iCounterVal);
+
 	if (iCounterVal == 5) // Ex2
 		iCurrentStage = 4;
 	else if (iCounterVal == 6) // ZM Mode
 		iCurrentStage = 9;
-	else if (iCounterVal == 7) // Ex2 (H+U)
+	else if (iCounterVal == 7) // Ex2 (Heal +Ultima)
 		iCurrentStage = 5;
 	else if (iCounterVal == 9) // Ex3 (Hellz)
 		iCurrentStage = 7;
@@ -454,6 +466,8 @@ public int GetCurrentStage()
 		iCurrentStage = 8;
 	else if (iCounterVal == 13) // Ex3 (NiDe)
 		iCurrentStage = 10;
+	else if (iCounterVal == 14) // RMZS
+		iCurrentStage = 11;
 	else
 		iCurrentStage = -1;
 
