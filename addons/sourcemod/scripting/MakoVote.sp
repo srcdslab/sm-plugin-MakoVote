@@ -42,7 +42,7 @@ public void OnPluginStart()
 	g_cRtd_Percent = CreateConVar("sm_makovote_rtd_percent", "15", "Percentage chance value to trigger ZM mod with RTD", FCVAR_NOTIFY, true, 0.0, true, 100.0);
 	g_cMenuCDWhiteDraw = CreateConVar("sm_makovote_menu_cdwhitedraw", "1", "Enable/Disable the white draw of stage when it is on cooldown", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cZMStageMenu = CreateConVar("sm_makovote_zmstage_menu", "1", "Enable/Disable the ZM stage in the menu [dependency: sm_makovote_rtd 0]", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	g_cCDNumber = CreateConVar("sm_makovote_cd_maxstages", "3", "Number of stages to be on cooldown before reset", FCVAR_NOTIFY, true, 0.0, true, NUMBEROFSTAGES.0);
+	g_cCDNumber = CreateConVar("sm_makovote_cd_maxstages", "3", "Number of stages to be on cooldown before reset", FCVAR_NOTIFY, true, 0.0, true, float(NUMBEROFSTAGES));
 
 	RegAdminCmd("sm_makovote", Command_AdminStartVote, ADMFLAG_CONVARS, "sm_makovote");
 	RegServerCmd("sm_makovote", Command_StartVote);
