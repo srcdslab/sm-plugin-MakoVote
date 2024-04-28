@@ -12,7 +12,7 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5.4",
+	version     = "1.5.5",
 	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
@@ -169,38 +169,38 @@ public void OnRoundStart(Event hEvent, const char[] sEvent, bool bDontBroadcast)
 
 		int iBarrerasfinal = FindEntityByTargetname(INVALID_ENT_REFERENCE, "barrerasfinal", "prop_dynamic");
 		if (iBarrerasfinal != INVALID_ENT_REFERENCE)
-				AcceptEntityInput(iBarrerasfinal, "Kill");
+			AcceptEntityInput(iBarrerasfinal, "Kill");
 
 		int iFilter = FindEntityByTargetname(INVALID_ENT_REFERENCE, "humanos", "filter_activator_team");
 		if (iFilter != INVALID_ENT_REFERENCE)
-				AcceptEntityInput(iFilter, "Kill");
+			AcceptEntityInput(iFilter, "Kill");
 
 		int iTemp1 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser1Temp", "point_template");
 		if (iTemp1 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+			DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,SetDamage,0,0,-1");
+			DispatchKeyValue(iTemp1, "OnEntitySpawned", "EX2Laser1Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
 		int iTemp2 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser2Temp", "point_template");
 		if (iTemp2 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+			DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,SetDamage,0,0,-1");
+			DispatchKeyValue(iTemp2, "OnEntitySpawned", "EX2Laser2Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
 		int iTemp3 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser3Temp", "point_template");
 		if (iTemp3 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+			DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,SetDamage,0,0,-1");
+			DispatchKeyValue(iTemp3, "OnEntitySpawned", "EX2Laser3Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
 		int iTemp4 = FindEntityByTargetname(INVALID_ENT_REFERENCE, "EX2Laser4Temp", "point_template");
 		if (iTemp4 != INVALID_ENT_REFERENCE)
 		{
-				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,SetDamage,0,0,-1");
-				DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
+			DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,SetDamage,0,0,-1");
+			DispatchKeyValue(iTemp4, "OnEntitySpawned", "EX2Laser4Hurt,AddOutput,OnStartTouch !activator:AddOutput:origin -7000 -1000 100:0:-1,0,-1");
 		}
 
 		int iLaserTimer = FindEntityByTargetname(INVALID_ENT_REFERENCE, "cortes2", "logic_timer");
@@ -449,8 +449,6 @@ public int GetCurrentStage()
 
 	int iCurrentStage;
 	// Note: iCurrentStage is the index as "triggers" related to the stage in the adminroom config.
-
-	PrintToChatAll("Counter Value: %d", iCounterVal);
 
 	if (iCounterVal == 5) // Ex2
 		iCurrentStage = 4;
