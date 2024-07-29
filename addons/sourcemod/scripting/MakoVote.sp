@@ -12,14 +12,14 @@ public Plugin myinfo =
 	name        = "MakoVote",
 	author	    = "Neon, maxime1907, .Rushaway",
 	description = "MakoVote",
-	version     = "1.5.5",
+	version     = "1.5.6",
 	url         = "https://github.com/srcdslab/sm-plugin-MakoVote/"
 }
 
 #define DEFAULTSTAGES 4 // Normal, Hard, Ex, Ex2 (we dont count warmup)
 #define NUMBEROFSTAGES 8
 
-ConVar g_cDelay, g_cRtd, g_cRtd_Percent, g_cMenuCDWhiteDraw, g_cZMStageMenu, g_cCDNumber;
+ConVar g_cDelay, g_cRtd, g_cRtd_Percent, g_cZMStageMenu, g_cCDNumber;
 
 bool g_bIsRevote = false;
 bool g_bPlayedZM = false;
@@ -40,7 +40,6 @@ public void OnPluginStart()
 	g_cDelay = CreateConVar("sm_makovote_delay", "3.0", "Time in seconds for firing the vote from admin command", FCVAR_NOTIFY, true, 1.0, true, 10.0);
 	g_cRtd = CreateConVar("sm_makovote_rtd", "0", "Enable Roll The Dice", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cRtd_Percent = CreateConVar("sm_makovote_rtd_percent", "15", "Percentage chance value to trigger ZM mod with RTD", FCVAR_NOTIFY, true, 0.0, true, 100.0);
-	g_cMenuCDWhiteDraw = CreateConVar("sm_makovote_menu_cdwhitedraw", "1", "Enable/Disable the white draw of stage when it is on cooldown", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cZMStageMenu = CreateConVar("sm_makovote_zmstage_menu", "1", "Enable/Disable the ZM stage in the menu [dependency: sm_makovote_rtd 0]", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	g_cCDNumber = CreateConVar("sm_makovote_cd_maxstages", "3", "Number of stages to be on cooldown before reset", FCVAR_NOTIFY, true, 0.0, true, float(NUMBEROFSTAGES));
 
@@ -67,7 +66,7 @@ stock void VerifyMap()
 {
 	char currentMap[64];
 	GetCurrentMap(currentMap, sizeof(currentMap));
-	if (!StrEqual(currentMap, "ze_FFVII_Mako_Reactor_v5_3"))
+	if (!StrEqual(currentMap, "ze_FFVII_Mako_Reactor_v5_3", false))
 	{
 		char sFilename[256];
 		GetPluginFilename(INVALID_HANDLE, sFilename, sizeof(sFilename));
@@ -349,24 +348,23 @@ public void InitiateVote()
 		g_StageList.GetString(i, sBuffer, sizeof(sBuffer));
 
 		bool isZombieMode = strcmp(sBuffer, "Zombie Mode") == 0;
-		bool disableItem = g_bOnCooldown[i] || (isZombieMode && g_bPlayedZM);
-		bool bSkipZMStage = isZombieMode && g_bPlayedZM || !g_cZMStageMenu.BoolValue;
+		bool bSkipZMStage = isZombieMode && (g_bPlayedZM || !g_cZMStageMenu.BoolValue);
 
-		if (g_cMenuCDWhiteDraw.BoolValue && bSkipZMStage)
-			continue;
-		else
+		for (int j = 0; j <= (NUMBEROFSTAGES - 1); j++)
 		{
-			if ((isZombieMode && g_cRtd.BoolValue) || (g_bOnCooldown[i] && !isZombieMode) || bSkipZMStage || !g_cZMStageMenu.BoolValue)
-				continue;
+			if (strcmp(sBuffer, g_sStageName[j]) == 0)
+			{
+				bool disableItem = g_bOnCooldown[j] || bSkipZMStage;
+				if (!disableItem)
+					AddMenuItem(g_VoteMenu, sBuffer, sBuffer, disableItem ? ITEMDRAW_DISABLED : 0);
+			}
 		}
-
-		AddMenuItem(g_VoteMenu, sBuffer, sBuffer, disableItem ? ITEMDRAW_DISABLED : 0);
 	}
 
 	SetMenuOptionFlags(g_VoteMenu, MENU_NO_PAGINATION);
 	SetMenuTitle(g_VoteMenu, "What stage to play next?");
 	SetVoteResultCallback(g_VoteMenu, Handler_SettingsVoteFinished);
-	VoteMenuToAll(g_VoteMenu, 20);
+	VoteMenuToAll(g_VoteMenu, 15);
 }
 
 public int Handler_MakoVoteMenu(Handle menu, MenuAction action, int param1, int param2)
